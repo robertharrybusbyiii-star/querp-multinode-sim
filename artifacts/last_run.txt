@@ -1,0 +1,374 @@
+QuERP multi-node simulation — LOCKED baseline v0.3b (24 Aug 2026)
+
+MODEL OUTPUT UNDER STATED ASSUMPTIONS - NOT MEASURED. None of the inputs is MEASURED for this hardware. The 'Trinity' factors (T2 x2.4, success x1.18, TPP gain 1.08, per-round depolarizing residual 0.01) are hypothetical scenario parameters with no demonstrated physical mechanism. Rates are per elementary link with NO distance or fiber loss modeled. TPP runs with --purify-idle ideal are an optimistic upper bound (no memory decoherence), not a prediction.
+
+Input registry (label | value unit | note):
+  [ASSUMPTION] RF density = 60 uW/cm2  -- Needs a dedicated transmitter (~7.5 W EIRP at 1 m); ambient levels far lower. No established effect on spin coherence/link success; only sets DC power here.
+  [ASSUMPTION] QBEH cells x area = 100 x 9.0 cm2  -- no source found
+  [LITERATURE (best case)] eta RF->DC = 0.62 -  -- Measured rectenna RF-DC 40-63% exists (e.g. PMC10140817); 0.62 is top of range, ideal matching.
+  [ASSUMPTION] Electronics+control = 12 mW  -- Ignores cryostat: SnV- memories measured at ~1.7 K; cooling power >> 12 mW.
+  [ASSUMPTION (exceeds literature)] T2 = 0.0036 s  -- SnV-: 170 us Hahn echo, 650 us XY16 (Rosenthal PRX 13 031022); ~1.7-1.8 ms XY8+256 pi pulses (Beukers 2024, arXiv 2409.08977). 3.6 ms is above these and is a dynamical-decoupling T2.
+  [ASSUMPTION] Trinity T2 factor (3.6/1.5) = 2.4 x  -- No demonstrated coupling of a phase lock to memory T2. Hypothetical.
+  [ASSUMPTION] Trinity success factor (0.0071/0.006) = 1.18333 x  -- no source found
+  [ASSUMPTION] p_succ (locked) = 0.0071 -  -- no source found; never used in e2e calcs (only Gamma is)
+  [ASSUMPTION] Attempt rate = 5000 Hz  -- no source found; ignores communication latency
+  [ASSUMPTION/TUNED] Gamma (locked) = 85 Hz  -- Equals ~2.39x (attempt x p_succ = 35.5 Hz); undocumented multiplier, ~= the T2 factor 2.4.
+  [TUNED/UNEXPLAINED] Gamma unexplained factor = 2.39437 x  -- Called 'multiplexing factors' in README; no derivation.
+  [ASSUMPTION] F_link = 0.887 -  -- Werner form assumed; real links are not Werner.
+  [ASSUMPTION] p_swap / eta_swap = 1.0 / 1.0 -  -- Ideal swap and ideal local gates.
+  [TUNED] TPP lock gain = 1.08 x  -- A phase lock cannot raise herald probability above its analytical value.
+  [TUNED (neutral)] TPP fidelity gain = 1 x  -- no source found
+  [TUNED] TPP depolarizing residual (per round) = 0.01 -  -- Per-round unitless shrink of Werner weight, not a floor/angle.
+  [ASSUMPTION] Purify target / max rounds = 0.95 / 8 -  -- policy
+  [ASSUMPTION] Idle model = exp decay of Werner weight, averaged over exponential gaps -  -- Dephasing T2 used as depolarizing decay (floor F=0.25 not 0.5); one factor per pair.
+  [MISSING] Distance / fiber loss = not modeled -  -- No eta, km or dB/km; PLOB bound untestable.
+  [ASSUMPTION] Useful thresholds = R>=1.0 Hz, F>=0.88 -  -- reporting policy
+
+Protocol=auto, p_swap=1.0, η_swap=1.0
+N = 2 .. 17
+Γ·T2 (nominal) = 0.306  (≪1 ⇒ idle decoherence dominates without cutoff/multiplexing)
+
+Noise-damping Trinity (locked into Γ/T2/p_succ): UNCHANGED
+Trinity Purification Protocol (TPP): OFF
+  (TPP defaults (TUNED, no source): trinity_lock_gain=1.08, trinity_fidelity_gain=1.0, depolarizing_residual(per-round)=0.01, purify_target=0.95, max_rounds=8)
+
+=== Sanity check (N=2 recovers elementary link, TPP off) ===
+  expected Γ=85.0 Hz, F=0.887
+  got      Γ=85.0 Hz, F=0.887  protocol=elementary
+  PASS
+
+=== Locked quantum (primary scenario) ===
+  T2      = 3.60 ms
+  p_succ  = 0.0071
+  Γ       = 85.0 Hz
+  F_link  = 0.887
+
+=== Power autonomy (nominal_v0.3b) ===
+  RF density     : 60.0 µW/cm²
+  DC harvest     : 33.48 mW
+  Electronics    : 12.00 mW
+  Power margin   : +21.48 mW
+  Autonomous     : True  (node_pass=True)
+
+=== End-to-end sweep — scenario=nominal_v0.3b (no TPP) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1           elementary   8.5000e+01   0.8870     True     True   True
+  3   2               nested   5.6667e+01   0.3768     True    False  False
+  4   3           sequential   2.8333e+01   0.2752     True    False  False
+  5   4               nested   3.7778e+01   0.2536     True    False  False
+  6   5           sequential   1.7000e+01   0.2510     True    False  False
+  7   6           sequential   1.4167e+01   0.2502     True    False  False
+  8   7           sequential   1.2143e+01   0.2500     True    False  False
+  9   8               nested   2.5185e+01   0.2500     True    False  False
+ 10   9           sequential   9.4444e+00   0.2500     True    False  False
+ 11  10           sequential   8.5000e+00   0.2500     True    False  False
+ 12  11           sequential   7.7273e+00   0.2500     True    False  False
+ 13  12           sequential   7.0833e+00   0.2500     True    False  False
+ 14  13           sequential   6.5385e+00   0.2500     True    False  False
+ 15  14           sequential   6.0714e+00   0.2500     True    False  False
+ 16  15           sequential   5.6667e+00   0.2500     True    False  False
+ 17  16               nested   1.6790e+01   0.2500     True    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+=== End-to-end sweep — nominal_v0.3b+TPP(target=0.95,when=link,idle=raw) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1       elementary_tpp   4.6206e+00   0.9509     True     True   True
+  3   2           nested_tpp   3.0804e+00   0.4035     True    False  False
+  4   3       sequential_tpp   1.5402e+00   0.2836     True    False  False
+  5   4           nested_tpp   2.0536e+00   0.2553     True    False  False
+  6   5       sequential_tpp   9.2413e-01   0.2516    False    False  False
+  7   6       sequential_tpp   7.7011e-01   0.2504    False    False  False
+  8   7       sequential_tpp   6.6009e-01   0.2501    False    False  False
+  9   8           nested_tpp   1.3691e+00   0.2500     True    False  False
+ 10   9       sequential_tpp   5.1341e-01   0.2500    False    False  False
+ 11  10       sequential_tpp   4.6206e-01   0.2500    False    False  False
+ 12  11       sequential_tpp   4.2006e-01   0.2500    False    False  False
+ 13  12       sequential_tpp   3.8505e-01   0.2500    False    False  False
+ 14  13       sequential_tpp   3.5543e-01   0.2500    False    False  False
+ 15  14       sequential_tpp   3.3005e-01   0.2500    False    False  False
+ 16  15       sequential_tpp   3.0804e-01   0.2500    False    False  False
+ 17  16           nested_tpp   9.1272e-01   0.2500    False    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3, 4, 5, 9]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+=== Power autonomy (half_rf) ===
+  RF density     : 30.0 µW/cm²
+  DC harvest     : 16.74 mW
+  Electronics    : 12.00 mW
+  Power margin   : +4.74 mW
+  Autonomous     : True  (node_pass=True)
+
+=== End-to-end sweep — scenario=half_rf (no TPP) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1           elementary   8.5000e+01   0.8870     True     True   True
+  3   2               nested   5.6667e+01   0.3768     True    False  False
+  4   3           sequential   2.8333e+01   0.2752     True    False  False
+  5   4               nested   3.7778e+01   0.2536     True    False  False
+  6   5           sequential   1.7000e+01   0.2510     True    False  False
+  7   6           sequential   1.4167e+01   0.2502     True    False  False
+  8   7           sequential   1.2143e+01   0.2500     True    False  False
+  9   8               nested   2.5185e+01   0.2500     True    False  False
+ 10   9           sequential   9.4444e+00   0.2500     True    False  False
+ 11  10           sequential   8.5000e+00   0.2500     True    False  False
+ 12  11           sequential   7.7273e+00   0.2500     True    False  False
+ 13  12           sequential   7.0833e+00   0.2500     True    False  False
+ 14  13           sequential   6.5385e+00   0.2500     True    False  False
+ 15  14           sequential   6.0714e+00   0.2500     True    False  False
+ 16  15           sequential   5.6667e+00   0.2500     True    False  False
+ 17  16               nested   1.6790e+01   0.2500     True    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+=== End-to-end sweep — half_rf+TPP(target=0.95,when=link,idle=raw) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1       elementary_tpp   4.6206e+00   0.9509     True     True   True
+  3   2           nested_tpp   3.0804e+00   0.4035     True    False  False
+  4   3       sequential_tpp   1.5402e+00   0.2836     True    False  False
+  5   4           nested_tpp   2.0536e+00   0.2553     True    False  False
+  6   5       sequential_tpp   9.2413e-01   0.2516    False    False  False
+  7   6       sequential_tpp   7.7011e-01   0.2504    False    False  False
+  8   7       sequential_tpp   6.6009e-01   0.2501    False    False  False
+  9   8           nested_tpp   1.3691e+00   0.2500     True    False  False
+ 10   9       sequential_tpp   5.1341e-01   0.2500    False    False  False
+ 11  10       sequential_tpp   4.6206e-01   0.2500    False    False  False
+ 12  11       sequential_tpp   4.2006e-01   0.2500    False    False  False
+ 13  12       sequential_tpp   3.8505e-01   0.2500    False    False  False
+ 14  13       sequential_tpp   3.5543e-01   0.2500    False    False  False
+ 15  14       sequential_tpp   3.3005e-01   0.2500    False    False  False
+ 16  15       sequential_tpp   3.0804e-01   0.2500    False    False  False
+ 17  16           nested_tpp   9.1272e-01   0.2500    False    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3, 4, 5, 9]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+=== Power autonomy (high_electronics) ===
+  RF density     : 60.0 µW/cm²
+  DC harvest     : 33.48 mW
+  Electronics    : 24.00 mW
+  Power margin   : +9.48 mW
+  Autonomous     : True  (node_pass=True)
+
+=== End-to-end sweep — scenario=high_electronics (no TPP) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1           elementary   8.5000e+01   0.8870     True     True   True
+  3   2               nested   5.6667e+01   0.3768     True    False  False
+  4   3           sequential   2.8333e+01   0.2752     True    False  False
+  5   4               nested   3.7778e+01   0.2536     True    False  False
+  6   5           sequential   1.7000e+01   0.2510     True    False  False
+  7   6           sequential   1.4167e+01   0.2502     True    False  False
+  8   7           sequential   1.2143e+01   0.2500     True    False  False
+  9   8               nested   2.5185e+01   0.2500     True    False  False
+ 10   9           sequential   9.4444e+00   0.2500     True    False  False
+ 11  10           sequential   8.5000e+00   0.2500     True    False  False
+ 12  11           sequential   7.7273e+00   0.2500     True    False  False
+ 13  12           sequential   7.0833e+00   0.2500     True    False  False
+ 14  13           sequential   6.5385e+00   0.2500     True    False  False
+ 15  14           sequential   6.0714e+00   0.2500     True    False  False
+ 16  15           sequential   5.6667e+00   0.2500     True    False  False
+ 17  16               nested   1.6790e+01   0.2500     True    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+=== End-to-end sweep — high_electronics+TPP(target=0.95,when=link,idle=raw) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1       elementary_tpp   4.6206e+00   0.9509     True     True   True
+  3   2           nested_tpp   3.0804e+00   0.4035     True    False  False
+  4   3       sequential_tpp   1.5402e+00   0.2836     True    False  False
+  5   4           nested_tpp   2.0536e+00   0.2553     True    False  False
+  6   5       sequential_tpp   9.2413e-01   0.2516    False    False  False
+  7   6       sequential_tpp   7.7011e-01   0.2504    False    False  False
+  8   7       sequential_tpp   6.6009e-01   0.2501    False    False  False
+  9   8           nested_tpp   1.3691e+00   0.2500     True    False  False
+ 10   9       sequential_tpp   5.1341e-01   0.2500    False    False  False
+ 11  10       sequential_tpp   4.6206e-01   0.2500    False    False  False
+ 12  11       sequential_tpp   4.2006e-01   0.2500    False    False  False
+ 13  12       sequential_tpp   3.8505e-01   0.2500    False    False  False
+ 14  13       sequential_tpp   3.5543e-01   0.2500    False    False  False
+ 15  14       sequential_tpp   3.3005e-01   0.2500    False    False  False
+ 16  15       sequential_tpp   3.0804e-01   0.2500    False    False  False
+ 17  16           nested_tpp   9.1272e-01   0.2500    False    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3, 4, 5, 9]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+=== Power autonomy (half_rf_high_elec) ===
+  RF density     : 30.0 µW/cm²
+  DC harvest     : 16.74 mW
+  Electronics    : 24.00 mW
+  Power margin   : -7.26 mW
+  Autonomous     : False  (node_pass=False)
+
+=== End-to-end sweep — scenario=half_rf_high_elec (no TPP) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1           elementary   8.5000e+01   0.8870     True     True   True
+  3   2               nested   5.6667e+01   0.3768     True    False  False
+  4   3           sequential   2.8333e+01   0.2752     True    False  False
+  5   4               nested   3.7778e+01   0.2536     True    False  False
+  6   5           sequential   1.7000e+01   0.2510     True    False  False
+  7   6           sequential   1.4167e+01   0.2502     True    False  False
+  8   7           sequential   1.2143e+01   0.2500     True    False  False
+  9   8               nested   2.5185e+01   0.2500     True    False  False
+ 10   9           sequential   9.4444e+00   0.2500     True    False  False
+ 11  10           sequential   8.5000e+00   0.2500     True    False  False
+ 12  11           sequential   7.7273e+00   0.2500     True    False  False
+ 13  12           sequential   7.0833e+00   0.2500     True    False  False
+ 14  13           sequential   6.5385e+00   0.2500     True    False  False
+ 15  14           sequential   6.0714e+00   0.2500     True    False  False
+ 16  15           sequential   5.6667e+00   0.2500     True    False  False
+ 17  16               nested   1.6790e+01   0.2500     True    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+=== End-to-end sweep — half_rf_high_elec+TPP(target=0.95,when=link,idle=raw) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1       elementary_tpp   4.6206e+00   0.9509     True     True   True
+  3   2           nested_tpp   3.0804e+00   0.4035     True    False  False
+  4   3       sequential_tpp   1.5402e+00   0.2836     True    False  False
+  5   4           nested_tpp   2.0536e+00   0.2553     True    False  False
+  6   5       sequential_tpp   9.2413e-01   0.2516    False    False  False
+  7   6       sequential_tpp   7.7011e-01   0.2504    False    False  False
+  8   7       sequential_tpp   6.6009e-01   0.2501    False    False  False
+  9   8           nested_tpp   1.3691e+00   0.2500     True    False  False
+ 10   9       sequential_tpp   5.1341e-01   0.2500    False    False  False
+ 11  10       sequential_tpp   4.6206e-01   0.2500    False    False  False
+ 12  11       sequential_tpp   4.2006e-01   0.2500    False    False  False
+ 13  12       sequential_tpp   3.8505e-01   0.2500    False    False  False
+ 14  13       sequential_tpp   3.5543e-01   0.2500    False    False  False
+ 15  14       sequential_tpp   3.3005e-01   0.2500    False    False  False
+ 16  15       sequential_tpp   3.0804e-01   0.2500    False    False  False
+ 17  16           nested_tpp   9.1272e-01   0.2500    False    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3, 4, 5, 9]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+=== Power autonomy (without_trinity) ===
+  RF density     : 60.0 µW/cm²
+  DC harvest     : 33.48 mW
+  Electronics    : 12.00 mW
+  Power margin   : +21.48 mW
+  Autonomous     : True  (node_pass=False)
+
+=== End-to-end sweep — scenario=without_trinity (no TPP) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1           elementary   3.0000e+01   0.8870     True     True   True
+  3   2               nested   2.0000e+01   0.2733     True    False  False
+  4   3           sequential   1.0000e+01   0.2509     True    False  False
+  5   4               nested   1.3333e+01   0.2500     True    False  False
+  6   5           sequential   6.0000e+00   0.2500     True    False  False
+  7   6           sequential   5.0000e+00   0.2500     True    False  False
+  8   7           sequential   4.2857e+00   0.2500     True    False  False
+  9   8               nested   8.8889e+00   0.2500     True    False  False
+ 10   9           sequential   3.3333e+00   0.2500     True    False  False
+ 11  10           sequential   3.0000e+00   0.2500     True    False  False
+ 12  11           sequential   2.7273e+00   0.2500     True    False  False
+ 13  12           sequential   2.5000e+00   0.2500     True    False  False
+ 14  13           sequential   2.3077e+00   0.2500     True    False  False
+ 15  14           sequential   2.1429e+00   0.2500     True    False  False
+ 16  15           sequential   2.0000e+00   0.2500     True    False  False
+ 17  16               nested   5.9259e+00   0.2500     True    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+=== End-to-end sweep — without_trinity+TPP(target=0.95,when=link,idle=raw) ===
+  N   L             protocol   R_e2e [Hz]    F_e2e useful_R useful_F useful
+----------------------------------------------------------------------------------
+  2   1       elementary_tpp   1.6308e+00   0.9509     True     True   True
+  3   2           nested_tpp   1.0872e+00   0.2782     True    False  False
+  4   3       sequential_tpp   5.4361e-01   0.2511    False    False  False
+  5   4           nested_tpp   7.2481e-01   0.2500    False    False  False
+  6   5       sequential_tpp   3.2616e-01   0.2500    False    False  False
+  7   6       sequential_tpp   2.7180e-01   0.2500    False    False  False
+  8   7       sequential_tpp   2.3297e-01   0.2500    False    False  False
+  9   8           nested_tpp   4.8320e-01   0.2500    False    False  False
+ 10   9       sequential_tpp   1.8120e-01   0.2500    False    False  False
+ 11  10       sequential_tpp   1.6308e-01   0.2500    False    False  False
+ 12  11       sequential_tpp   1.4826e-01   0.2500    False    False  False
+ 13  12       sequential_tpp   1.3590e-01   0.2500    False    False  False
+ 14  13       sequential_tpp   1.2545e-01   0.2500    False    False  False
+ 15  14       sequential_tpp   1.1649e-01   0.2500    False    False  False
+ 16  15       sequential_tpp   1.0872e-01   0.2500    False    False  False
+ 17  16           nested_tpp   3.2214e-01   0.2500    False    False  False
+
+Key findings:
+  F_e2e ≥ 0.88 (node floor): N ∈ [2]
+  F_e2e ≥ 0.5 (above classical): N ∈ [2]
+  R_e2e ≥ 1.0 Hz: N ∈ [2, 3]
+  both (F≥0.88 & R≥1.0): N ∈ [2]
+  max N with F≥0.88: 2
+  max N with F≥0.5: 2
+  max N with both node-floor thresholds: 2
+
+Wrote /workspace/querp-multinode-sim/artifacts/rate_vs_N.png
+Wrote /workspace/querp-multinode-sim/artifacts/fidelity_vs_N.png
+Wrote /workspace/querp-multinode-sim/artifacts/summary_nominal_v0.3b.csv
+Wrote /workspace/querp-multinode-sim/artifacts/summary_with_trinity_purify.csv
